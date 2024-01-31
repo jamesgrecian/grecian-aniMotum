@@ -1,0 +1,81 @@
+---
+title: "Applications of the {aniMotum} R package"
+author: "James Grecian"
+date: "2024-02-05"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This tutorial is heavily based on the Appendices and Supporting Information found in the Open Access `aniMotum` paper:
+
+- Jonsen ID, Grecian WJ, Phillips L, Carrol G, McMahon C, Harcourt RG, Hindell MA & Patterson TA (2023) aniMotum, an R package for animal movement data: Rapid quality control, behavioural estimation and simulation. Methods in Ecology and Evolution 14(3): 806-816  https://doi.org/10.1111/2041-210X.14060
+
+Please refer to the paper, appendices and the R package documentation for a comprehensive overview of `aniMotum`.
+
+# Before we begin
+
+Please download the `aniMotum` package from R-Universe.
+
+```{r}
+# install from my R-universe repository
+#install.packages("aniMotum", 
+#                 repos = c("https://cloud.r-project.org",
+#                 "https://ianjonsen.r-universe.dev"),
+#                 dependencies = TRUE)
+```
+
+This installs all Imported and Suggested R packages from CRAN and R-universe. If queried, answer Yes to install the source version. Note, if you haven’t installed {aniMotum} previously then installation of dependent packages may take a while, especially if many of them need to be compiled. You should only need to go through this once, subsequent installation of {aniMotum} updates will be much faster.
+
+Alternatively you can download a binary version of aniMotum here: https://ianjonsen.r-universe.dev/aniMotum
+
+For full instructions see the aniMotum homepage on GitHub: https://github.com/ianjonsen/aniMotum
+
+# Introduction
+
+The aim of this practical is to give you an understanding of the common appraches that are used to process and analyse animal movement data. We will be doing this in the `R` statistical framework and will introduce you to some commonly used `R` packages.
+
+During this practical you will:
+
+1. Load in an example location dataset and explore the data with some preliminary plots
+2. Produce a map of the study area in an appropriate spatial projection for the region
+3. Load in an example dive summary dataset and explore the data with some preliminary plots
+4. Regularise animal location data and combine them with dive summary data
+5. Extract example environmental covariates from the regions the animal utilises and append them to the data frame  
+6. Perform a preliminary statistical analysis to better understand the drivers of animal movement  
+
+This practical will be based on the `tidyverse` style of `R` coding. You will become familiar with using pipes `|>` to perform data manipulations, using `ggplot` to generate publication quality figures, and using the `sf` package to handle spatial data.
+
+For more information on the `tidyverse` check out the Wickham & Grolemund book 'R for Data Science'.
+You can access it for free online here:  
+https://r4ds.had.co.nz
+
+The project website can be accessed here:  
+https://www.tidyverse.org
+
+For more information on the `sf` project check out https://r-spatial.github.io/sf/
+
+# Other required packages
+
+```{r}
+library(tidyverse)
+library(sf)
+```
+
+
+<!-- avoid border around code -->
+<style>
+  pre {
+    border: 0;
+  }
+  #TOC {
+    border: 0;
+  }
+</style>
