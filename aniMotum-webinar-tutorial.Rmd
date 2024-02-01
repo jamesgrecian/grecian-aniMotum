@@ -10,26 +10,38 @@ output:
     theme: cosmo
 ---
 
+<!-- avoid border around code -->
+<style>
+  #TOC {
+    border: 0;
+  }
+  .list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: #698b69;
+}
+</style>
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
 ```
 
-This tutorial is heavily based on the Appendices and Supporting Information found in the Open Access `aniMotum` paper:
+This tutorial is heavily based on the Appendices and Supporting Information found in the Open Access {aniMotum} paper:
 
 - Jonsen ID, Grecian WJ, Phillips L, Carrol G, McMahon C, Harcourt RG, Hindell MA & Patterson TA (2023) aniMotum, an R package for animal movement data: Rapid quality control, behavioural estimation and simulation. Methods in Ecology and Evolution 14(3): 806-816  https://doi.org/10.1111/2041-210X.14060
 
-Please refer to the paper, appendices and the R package documentation for a comprehensive overview of `aniMotum`.
+Please refer to the paper, appendices and the R package documentation for a comprehensive overview of {aniMotum}.
 
-# Before we begin
+---
 
-Please download the `aniMotum` package from R-Universe.
+## Before we begin
 
-```{r}
+Please download the {aniMotum} package from R-Universe.
+
+```{r, eval = F}
 # install from my R-universe repository
-#install.packages("aniMotum", 
-#                 repos = c("https://cloud.r-project.org",
-#                 "https://ianjonsen.r-universe.dev"),
-#                 dependencies = TRUE)
+install.packages("aniMotum", 
+                 repos = c("https://cloud.r-project.org",
+                 "https://ianjonsen.r-universe.dev"),
+                 dependencies = TRUE)
 ```
 
 This installs all Imported and Suggested R packages from CRAN and R-universe. If queried, answer Yes to install the source version. Note, if you haven’t installed {aniMotum} previously then installation of dependent packages may take a while, especially if many of them need to be compiled. You should only need to go through this once, subsequent installation of {aniMotum} updates will be much faster.
@@ -38,44 +50,290 @@ Alternatively you can download a binary version of aniMotum here: https://ianjon
 
 For full instructions see the aniMotum homepage on GitHub: https://github.com/ianjonsen/aniMotum
 
+---
+
 # Introduction
 
-The aim of this practical is to give you an understanding of the common appraches that are used to process and analyse animal movement data. We will be doing this in the `R` statistical framework and will introduce you to some commonly used `R` packages.
+The aim of this practical is to give you an understanding of how we can use the {aniMotum} R package to process and analyse animal movement data. My aim is that you can go on to apply similar workflows to your own animal movement data.
 
-During this practical you will:
+During this practical we will:
 
-1. Load in an example location dataset and explore the data with some preliminary plots
-2. Produce a map of the study area in an appropriate spatial projection for the region
-3. Load in an example dive summary dataset and explore the data with some preliminary plots
-4. Regularise animal location data and combine them with dive summary data
-5. Extract example environmental covariates from the regions the animal utilises and append them to the data frame  
-6. Perform a preliminary statistical analysis to better understand the drivers of animal movement  
+1. Load in an example data set
+2. Fit a state-space model to regularise and error correct a movement path
+3. Visualise the model fit
+4. Fit a move persistence model to estimate behaviour
+5. Extract the regularised data
+6. Manual mapping
+7. Simulate from the model
+8. Re-route movement paths
 
-This practical will be based on the `tidyverse` style of `R` coding. You will become familiar with using pipes `|>` to perform data manipulations, using `ggplot` to generate publication quality figures, and using the `sf` package to handle spatial data.
+This practical will be based on the {tidyverse} style of `R` coding. You will become familiar with using pipes `|>` to perform data manipulations, using `ggplot` to generate publication quality figures, and using the {sf} package to handle spatial data.
 
-For more information on the `tidyverse` check out the Wickham & Grolemund book 'R for Data Science'.
+For more information on the {tidyverse} check out the Wickham & Grolemund book 'R for Data Science'.
 You can access it for free online here:  
 https://r4ds.had.co.nz
 
 The project website can be accessed here:  
 https://www.tidyverse.org
 
-For more information on the `sf` project check out https://r-spatial.github.io/sf/
+For more information on the {sf} project check out https://r-spatial.github.io/sf/
 
-# Other required packages
+As discussed in the presentation we can pass data from several different tag types to {aniMotum}.
+For an outline of how {aniMotum} expects this data to be formatted see:
+https://ianjonsen.github.io/aniMotum/articles/Overview.html
+
+---
+
+# Practical
+
+In March 2019 I was part of an expedition to deploy Satellite Relay Data Loggers on harp seal pups in the Gulf of St Lawrence, Canada. These devices are satellite linked computers capable of recording a wide range of information and transmitting it via the ARGOS network. Here we will focus on the location data recorded by the ARGOS satellites when communicating with three of the tags.
+
+Harp seals give birth on the sea ice when it is at it’s most southerly extent in late Winter/ early Spring. Females wean their pup after around 2 weeks. We deployed tags on pups that were approximately 3 weeks old, and tracked their movements as they left the sea ice and began their first migration north.
+
+This work was published in Royal Society Open Science and is available Open Access here:
+
+- Grecian WJ, Stenson GB, Biuw M, Boehme L, Folkow LP, Goulet PJ, Jonsen ID, Malde A, Nordøy ES, Rosing-Asvid A & Smout S (2022) Environmental drivers of population-level variation in the migratory and diving ontogeny of an Arctic top predator Royal Society Open Science 9: 211042 https://doi.org/10.1098/rsos.211042
+
+## Loading data
+
+Data for 3 animals are available in the repo. Lets load them into R and have a quick look.
+
+```{r, warning = F, message = F}
+# load libraries
+library(aniMotum)
+library(patchwork)
+library(sf)
+library(tidyverse)
+
+# load harp seal locations
+locs <- read_csv("harps.csv")
+locs
+```
+
+The harp data are formatted in a pretty standard way, including Argos' Least-Squares-based location error classes `lc`. This is the minimum required by `fit_ssm`:  
+- `id` a unique identifier for each animal (or track) in the `data.frame` or `tibble`.  
+- `date` a date-time variable in the form YYYY-mm-dd HH:MM:SS (or YYYY/mm/dd HH:MM:SS). These can be text strings, in which case aniMotum converts them to POSIX format and assumes the timezone is UTC.  
+- `lc` the location class variable common to Argos data, with classes in the set: 3, 2, 1, 0, A, B, Z.  
+- `lon` the longitude variable.   
+- `lat` the latitude variable.   
+
+The `lc` values determine the measurement error variances (based on independent data, see [Jonsen et al. 2020](https://doi.org/10.1186/s40462-020-00217-7)) used in the SSM’s for each observation.
+
+Since 2011, the default Argos location data uses CLS Argos’ Kalman Filter (KF) algorithm. These data include error ellipse information for each observed location in the form of 3 variables: ellipse semi-major axis length, ellipse semi-minor axis length, and ellipse orientation.
+
+The column names follow those for Argos LS data, with the following additions:  
+- `smaj` the Argos error ellipse semi-major axis length (m).  
+- `smin` the Argos error ellipse semi-minor axis length (m).  
+- `eor` the Argos error ellipse ellipse orientation (degrees from N).  
+
+Here, the error ellipse parameters for each observation define the measurement error variances used in the SSM’s ([Jonsen et al. 2020](https://doi.org/10.1186/s40462-020-00217-7)). Missing error ellipse values are allowed, in which case, those observations are treated as Argos LS data.
 
 ```{r}
-library(tidyverse)
-library(sf)
+# preliminary plot
+p1 <- ggplot() +
+  theme_bw() +
+  geom_point(aes(x = lon, y = lat), data = locs) +
+  facet_wrap(~id)
+print(p1)
+```
+
+The plot reveals one tracks have large gaps while the others have obviously erroneous location estimates.
+
+Let's check how frequently the tags were transmitting. This can guide the frequency of regularised locations estimated by {aniMotum}.
+
+```{r}
+locs |>
+  group_by(id) |>
+  summarise(mean_interval_hrs = as.numeric(mean(difftime(date, lag(date)), na.rm = T), "hours"),
+            max_interval_hrs = as.numeric(max(difftime(date, lag(date)), na.rm = T), "hours"))
+```
+
+On average two of the tags were transmitting hourly, with the first tag only transmitting every 3 hours. This difference is probably driven by the large gaps in transmission: 303 hours is 12.5 days!
+
+## Fit a state-space model
+
+We can use {aniMotum} to regularise and error correct these movement paths using a state-space model. For speed/ simplicity we'll ask for daily locations, but you can easily adjust this depending on your questions. For example, in the paper I dropped the data with large gaps and then used a 6 hour interval to match the locations to the 6 hour dive summary data transmitted by the tags.
+
+We can fit to all animals in the same call using the `fit_ssm` function. Here I'm fitting a correlated random walk with `model = "crw"` other options are random walk (`model = "rw"`) and move persistence (`model = "mp"`).
+
+```{r}
+fit <- fit_ssm(locs,
+        vmax = 5,
+        model = "crw",
+        time.step = 24,
+        control = ssm_control(verbose = 0))
+```
+
+You can access the results and summary information about the model fit with the `summary` function:
+
+```{r}
+summary(fit)
+```
+
+## Visualise the model fit
+
+We can quickly check the model fit via a 1-D time series plot of the model:
+
+```{r, fig.height = 8}
+plot(fit,
+     what = "predicted",
+     type = 1,
+     pages = 1)
+```
+
+I've pulled just the first animal to illustrate the plot here. The fitted points (orange) are overlayed on top of the observations (blue). Note when plotting the predicted (24 hour) locations the uncertainty increases when interpolating across the gaps we highlighted earlier. You would need to carefully consider whether to include these interpolated sections in any further analysis.
+
+A 2-D plot of the model:
+
+```{r}
+plot(fit,
+     what = "predicted",
+     type = 2,
+     pages = 1,
+     ncol = 3)
+```
+
+Again highlighting how much uncertainty we have in hp6-747-19.
+
+We can map the predicted locations straight from the `fit_ssm` object as follows:
+
+```{r}
+aniMotum::map(fit,
+              what = "predicted")
 ```
 
 
-<!-- avoid border around code -->
-<style>
-  pre {
-    border: 0;
-  }
-  #TOC {
-    border: 0;
-  }
-</style>
+## Fit a move persistence model
+
+We may be interested in inferring how an individuals behaviour changes along the movement path. Move persistence is a *continuous* behavioural index that captures autocorrelation in both speed and direction. For more information on move persistence please read:
+
+- Jonsen, ID, McMahon, CR, Patterson TA, Auger-Méthé M, Harcourt R, Hindell MA & Bestley S (2019). Movement responses to environment: Fast inference of variation among southern elephant seals with a mixed effects model. Ecology 100: e02566 (https://doi.org/10.1002/ecy.2566)
+
+This is a different approach to discrete states estimated using methods such as hidden Markov models. For information on those see Théo Michelot's previous EFI/ ESA webinar here: https://www.youtube.com/watch?v=WELTpbB5BuU
+
+```{r}
+
+fmpm <- fit_mpm(fit,
+                what = "predicted",
+                model = "jmpm",
+                control = mpm_control(verbose = 0))
+plot(fmpm,
+     pages = 1,
+     ncol = 2)
+
+```
+
+It is possible to go on to link move persistence to environmental covariates. Take a look at Jonsen et al. ([2019](https://doi.org/10.1002/ecy.2566)) for the method and Grecian et al. ([2022](https://doi.org/10.1098/rsos.211042)) for application to this data set.
+
+
+## Data extraction
+
+You may want to extract the regularised data output from `fit_ssm` to use in a difference application, or you may want to generate your own maps. You can do this with the `grab` function:
+
+```{r}
+# extract predicted locations and their move persistence estimates
+df_locs <- fit |> grab("predicted")
+df_mpm <- fmpm |> grab("fitted")
+
+# combine
+df <- df_locs |> left_join(df_mpm)
+```
+
+## Manual mapping
+
+To generate a map we need to load a suitable shapefile from the {rnaturalearth} package and define a suitable projection.
+
+```{r}
+#install.packages("rnaturalearth")
+require(rnaturalearth)
+
+# Generate a global shapefile and a simple plot
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# To generate a plot with less distortion first define a projection i.e. Lambert Azimuthal Equal Area
+prj = "+proj=laea +lat_0=60 +lon_0=-50 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
+# Create an sf version of the locs data with a WGS84 projection and add to the plot
+df_sf <- df |> 
+  st_as_sf(coords = c('lon', 'lat')) |>
+  st_set_crs(4326)
+
+ggplot() +
+  theme_bw() +
+  geom_sf(aes(), data = world) +
+  geom_sf(aes(colour = g), data = df_sf, show.legend = "point") +
+  scale_color_viridis_c(expression(gamma[t]), limits = c(0,1)) +
+  coord_sf(xlim = c(-2000000, 2000000), ylim = c(-2500000, 2500000), crs = prj, expand = T) +
+  scale_x_continuous(breaks = seq(from = -130, to = 30, by = 10)) +
+  facet_wrap(~id, nrow = 1)
+
+
+```
+
+
+## Simulate from the model
+
+```{r, eval = F}
+
+trs <- sim_fit(fit,
+               what = "predicted",
+               reps = 5)
+plot(trs,
+     ncol = 3)
+```
+
+
+
+
+
+plot(fit)
+
+#p2 <- plot(fit, type = 1, what = "predicted")
+#p3 <- plot(fit, type = 2, what = "predicted")
+#p4 <- aniMotum::map(fit, what = "predicted")
+
+
+#fmpm <- fit_mpm(fit)
+
+
+#xs <- osar(fit)
+#plot(res, type = "ts")
+#plot(res, type = "qq")
+#plot(res, type = "acf")
+
+```
+
+
+`aniMotum` can be used to fit a state-space model to Argos PTT, GLS or GPS data.
+
+Have a look at the help file for `fit_ssm`.
+
+For Argos PTT data you need to provide either the location class, or the semimajor and semiminor axies of the error...
+
+For GLS data replace the lc column with a string of "GL"
+
+For GPS data replace the lc column with a string of "G"
+
+ideally for geolocation data youwould have standard errors associated with each location, which can be passed as columns to XXX.
+
+If you do not have these data then a good starting place is somewhere between 0.25 and 1 deg SE's for Latitude and .5 that value for Longitude.
+
+For GPS data you can try a small error variance i.e. 10s of metres
+
+
+
+Rework the list of things to do so that they match the introductory slides
+
+Prep data
+Run fit_ssm
+
+etc
+
+What about other sources of data?
+Geolocation
+GPS
+PTT
+
+
+
+
