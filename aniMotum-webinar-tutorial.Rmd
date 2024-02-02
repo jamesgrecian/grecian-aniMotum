@@ -137,7 +137,7 @@ p1 <- ggplot() +
 print(p1)
 ```
 
-The plot reveals one tracks have large gaps while the others have obviously erroneous location estimates.
+The plot reveals one track has large gaps while the others have (at least one) obviously erroneous location estimates.
 
 Let's check how frequently the tags were transmitting. This can guide the frequency of regularised locations estimated by {aniMotum}.
 
@@ -181,7 +181,7 @@ plot(fit,
      pages = 1)
 ```
 
-I've pulled just the first animal to illustrate the plot here. The fitted points (orange) are overlayed on top of the observations (blue). Note when plotting the predicted (24 hour) locations the uncertainty increases when interpolating across the gaps we highlighted earlier. You would need to carefully consider whether to include these interpolated sections in any further analysis.
+The fitted points (orange) are overlayed on top of the observations (blue). Note the uncertainty increases when interpolating across the gaps we highlighted earlier. You would need to carefully consider whether to include these interpolated sections in any further analysis.
 
 A 2-D plot of the model:
 
@@ -193,7 +193,7 @@ plot(fit,
      ncol = 3)
 ```
 
-Again highlighting how much uncertainty we have in hp6-747-19.
+Again the 2D plot highlights the uncertainty in hp6-747-19's path.
 
 We can map the predicted locations straight from the `fit_ssm` object as follows:
 
@@ -201,6 +201,7 @@ We can map the predicted locations straight from the `fit_ssm` object as follows
 aniMotum::map(fit,
               what = "predicted")
 ```
+
 
 Often when validating models we want to assess residual plots. {aniMotum} offers the option of calculating one-step-ahead prediction residuals. 
 These can be helpful but are computationally demanding. We calculate the residuals via the `osar` function and can visualise them as a time-series, QQ plot and autocorrelation plot.
@@ -226,7 +227,13 @@ We may be interested in inferring how an individuals behaviour changes along the
 
 - Jonsen, ID, McMahon, CR, Patterson TA, Auger-Méthé M, Harcourt R, Hindell MA & Bestley S (2019). Movement responses to environment: Fast inference of variation among southern elephant seals with a mixed effects model. Ecology 100: e02566 (https://doi.org/10.1002/ecy.2566)
 
-This is a different approach to discrete states estimated using methods such as hidden Markov models. For information on those see Théo Michelot's previous EFI/ ESA webinar here: https://www.youtube.com/watch?v=WELTpbB5BuU
+This is a different approach to discrete states estimated using methods such as hidden Markov models. For information on those see previous EFI/ ESA webinars by Théo Michelot and Vianey Leos Barajas.
+
+Move persistence models can be fit either using `fit_mpm` or simultaneous to the state-space model fit via the `model = "mp"` argument in `fit_ssm`.
+
+If you fit the model with `fit_mpm` then there is the option to estimate move persistence independently for each animal (`model = "mpm"`), or sharing a parameter across individuals (`model = "jmpm"`).
+
+Here we fit a joint move persistence model to the three animals and then plot the results using the default plot function.
 
 ```{r}
 
@@ -240,7 +247,9 @@ plot(fmpm,
 
 ```
 
-It is possible to go on to link move persistence to environmental covariates. Take a look at Jonsen et al. ([2019](https://doi.org/10.1002/ecy.2566)) for the method and Grecian et al. ([2022](https://doi.org/10.1098/rsos.211042)) for application to this data set.
+You can see each path varies between periods of high and low move persistence. This suggests there are changes in the movements indicative of periods of migration and periods of residency. See the [Manual Mapping](#manual-mapping) section for an example of mapping the migration and visualising move persistence.
+
+It is also possible to go on to link move persistence to environmental covariates. Take a look at Jonsen et al. ([2019](https://doi.org/10.1002/ecy.2566)) for the method and Grecian et al. ([2022](https://doi.org/10.1098/rsos.211042)) for an application to this data set.
 
 
 ## Data extraction
@@ -261,7 +270,9 @@ df
 
 ## Manual mapping
 
-To generate a map we need to load a suitable shapefile from the {rnaturalearth} package and define a suitable projection. I've then created an {sf} object with a WGS84 projection, and passed that to the `geom_sf` function. We specify the projection via the `coord_sf` function.
+To generate a map we need to load a suitable shapefile from the {rnaturalearth} package. These can be loaded into your session as an {sf} object ready to be plotted with `geom_sf`. I've then created an {sf} object manually from the `df` object containing the regularised locations and their corresponding move persistence estimates.
+
+Given the geographic region, I've defined `prj` as custom Lambert Azimuthal Equal Area projection centred on the study region. We specify the projection via the `coord_sf` function.
 
 ```{r}
 #install.packages("rnaturalearth")
@@ -291,7 +302,7 @@ ggplot() +
 ```
 
 This nicely illustrates the most likely path of the three animals from the pupping ground in the Gulf of St Lawrence as they migrate north. 
-Colouring the points by move persistence (gamma[t]) highlights periods when the animals were moving faster and more directed (lighter colours) and 
+Colouring the points by move persistence ($\gamma$^t^) highlights periods when the animals were moving faster and more directed (lighter colours) and 
 when the animals were travelling slower and less directed (darker).
 
 <center>
