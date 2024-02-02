@@ -202,6 +202,23 @@ aniMotum::map(fit,
               what = "predicted")
 ```
 
+Often when validating models we want to assess residual plots. {aniMotum} offers the option of calculating one-step-ahead prediction residuals. 
+These can be helpful but are computationally demanding. We calculate the residuals via the `osar` function and can visualise them as a time-series, QQ plot and autocorrelation plot.
+
+```{r, cache = T}
+
+res <- osar(fit)
+
+```
+
+
+```{r, fig.height = 9}
+
+plot(res, type = "ts", pages = 1) | plot(res, type = "qq", pages = 1) | plot(res, type = "acf", pages = 1)
+
+```
+
+The time series and autocorrelation plots suggest that the `crw` model is a good fit to the data, although there is some skew in the QQ plot. We could re-run the models as `rw` or `mp` and see how this impacts model fit.
 
 ## Fit a move persistence model
 
@@ -237,11 +254,14 @@ df_mpm <- fmpm |> grab("fitted")
 
 # combine
 df <- df_locs |> left_join(df_mpm)
+df
+
 ```
+
 
 ## Manual mapping
 
-To generate a map we need to load a suitable shapefile from the {rnaturalearth} package and define a suitable projection.
+To generate a map we need to load a suitable shapefile from the {rnaturalearth} package and define a suitable projection. I've then created an {sf} object with a WGS84 projection, and passed that to the `geom_sf` function. We specify the projection via the `coord_sf` function.
 
 ```{r}
 #install.packages("rnaturalearth")
@@ -270,7 +290,16 @@ ggplot() +
 
 ```
 
+This nicely illustrates the most likely path of the three animals from the pupping ground in the Gulf of St Lawrence as they migrate north. 
+Colouring the points by move persistence (gamma[t]) highlights periods when the animals were moving faster and more directed (lighter colours) and 
+when the animals were travelling slower and less directed (darker).
 
+<center>
+
+![Hey there - nice plot!](harpGif.gif)
+</center>
+
+# Extras
 ## Simulate from the model
 
 ```{r, eval = F}
