@@ -311,6 +311,54 @@ when the animals were travelling slower and less directed (darker).
 </center>
 
 # Extras
+
+## An example GPS data set
+
+We can also use {aniMotum} to process animal movement data collected by GPS devices or Geolocation sensors.
+To do this we need to specify a different location class via the `lc` argument in `fit_ssm`.
+
+The following little penguin data set is available in the supplementary material to the aniMotum paper. Note the `lc` column contains the letter `G` to indicate to {aniMotum} that this is GPS data.
+
+GPS devices will only be able to fix their location when the penguin is at the surface, and so unsuprisingly the GPS tracks contain many gaps when the animals were diving. For a more detailed analysis of the little penguin data please read the [original paper](https://doi.org/10.1098/rsos.220028) alongside the analysis in the aniMotum paper. Here we regularise the location data to 2 minute temporal resolution (`fit_ssm` expects the input in hours) and calculate move persistence.
+
+```{r, warning = F, message = F}
+
+lipe <- read_csv("https://raw.githubusercontent.com/ianjonsen/foieGras.paper/main/data/lipe_gps_ex32.csv")
+lipe
+
+lipe_ssm <- fit_ssm(lipe,
+        vmax = 5,
+        min.dt = 5,
+        model = "crw",
+        time.step = 2/60,
+        control = ssm_control(verbose = 0))
+
+lipe_fmpm <- fit_mpm(lipe_ssm,
+                what = "predicted",
+                model = "jmpm",
+                control = mpm_control(verbose = 0))
+
+aniMotum::map(lipe_ssm, what = "predicted") | plot(lipe_fmpm, ncol = 2, pages = 1)
+
+```
+
+
+## An example Geolocation data set
+
+
+When fitting models in R it's easy to foget the heavy lifting that these models are often doing behind the scenes.
+
+Just a few years ago, a state-space model fit to animal movement data via MCMC would take hours or even days to run. Now with TMB these models take minutes.
+
+This also means it's easy to throw the data into the model without doing thorough data checks first.
+
+Most issues can be avoided by checking for unique id's between animals, issues with date time format or missing values before passing any data to `fit_ssm`. 
+
+It's also important to remember what location class your data have. If they are GPS or 
+
+
+
+
 ## Simulate from the model
 
 ```{r, eval = F}
